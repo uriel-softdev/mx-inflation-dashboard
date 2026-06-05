@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inflación México — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+  <style>
+    /* =====================================================
+       DESIGN TOKENS — un solo lugar para cambiar colores,
+       tipografía y espaciado en todo el proyecto
+    ===================================================== */
+    :root {
+      --bg-base:        #0d0f14;
+      --bg-surface:     #161820;
+      --bg-hover:       #1c1f28;
+
+      --border-subtle:  #2a2d35;
+      --border-dim:     #1a1d25;
+
+      --text-primary:   #e8e6e0;
+      --text-secondary: #5a5f70;
+      --text-dim:       #3a3f50;
+
+      --accent-teal:    #1fcfa0;
+      --accent-red:     #e05252;
+      --accent-amber:   #e0a020;
+
+      --font-display:   'Syne', sans-serif;
+      --font-mono:      'Space Mono', monospace;
+
+      --radius-sm:      4px;
+      --radius-md:      10px;
+      --radius-lg:      14px;
+
+      --space-xs:       0.5rem;
+      --space-sm:       1rem;
+      --space-md:       1.5rem;
+      --space-lg:       2rem;
+    }
+
+    /* =====================================================
+       RESET Y BASE
+    ===================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-display);
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: var(--space-lg);
+    }
+
+    /* =====================================================
+       LAYOUT
+    ===================================================== */
+    .dashboard {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    /* =====================================================
+       HEADER
+    ===================================================== */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--space-lg);
+      padding-bottom: var(--space-md);
+      border-bottom: 0.5px solid var(--border-subtle);
+    }
+
+    .header__title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+
+    .header__subtitle {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .source-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      background: var(--bg-surface);
+      border: 0.5px solid var(--border-subtle);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* =====================================================
+       CARDS DE MÉTRICAS
+    ===================================================== */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: var(--space-lg);
+    }
+
+    .metric-card {
+      background: var(--bg-surface);
+      border: 0.5px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm) var(--space-md);
+      transition: border-color 0.2s ease;
+    }
+
+    .metric-card:hover {
+      border-color: var(--border-dim);
+      background: var(--bg-hover);
+    }
+
+    .metric-card__label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 8px;
+    }
+
+    .metric-card__value {
+      font-family: var(--font-mono);
+      font-size: 30px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      line-height: 1;
+    }
+
+    .metric-card__sub {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* =====================================================
+       SECCIÓN DE GRÁFICA
+    ===================================================== */
+    .chart-section {
+      background: var(--bg-surface);
+      border: 0.5px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+
+    .chart-section__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-md);
+    }
+
+    .chart-section__title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .chart-section__badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--accent-teal);
+      background: rgba(31, 207, 160, 0.06);
+      border: 0.5px solid rgba(31, 207, 160, 0.2);
+      padding: 3px 10px;
+      border-radius: var(--radius-sm);
+    }
+
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+    }
+
+    /* =====================================================
+       ESTADOS: LOADING Y ERROR
+    ===================================================== */
+    .state-loading,
+    .state-error {
+      text-align: center;
+      padding: 3rem;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .state-loading { color: var(--text-dim); }
+    .state-error   { color: var(--accent-red); }
+
+    /* =====================================================
+       FOOTER
+    ===================================================== */
+    .footer {
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: var(--space-lg);
+      padding-top: var(--space-sm);
+      border-top: 0.5px solid var(--border-subtle);
+    }
+
+    /* =====================================================
+       LEYENDA DE COLORES (gráfica de barras)
+    ===================================================== */
+    .legend {
+      display: flex;
+      gap: 16px;
+      margin-top: var(--space-sm);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .legend__item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend__dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    /* Utilidades de color */
+    .color-teal  { color: var(--accent-teal); }
+    .color-red   { color: var(--accent-red); }
+    .color-amber { color: var(--accent-amber); }
+  </style>
+</head>
+
+<body>
+  <main class="dashboard" role="main">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div>
+        <h1 class="header__title">Inflación en México</h1>
+        <p class="header__subtitle">Variación anual del IPC — Serie histórica</p>
+      </div>
+      <span class="source-badge" aria-label="Fuente de datos">World Bank API</span>
+    </header>
+
+    <!-- MÉTRICAS -->
+    <section class="metrics-grid" aria-label="Métricas clave">
+      <div class="metric-card">
+        <p class="metric-card__label">Último dato</p>
+        <p class="metric-card__value color-amber" id="metric-latest">—</p>
+        <p class="metric-card__sub" id="metric-latest-year">Cargando...</p>
+      </div>
+      <div class="metric-card">
+        <p class="metric-card__label">Máximo histórico</p>
+        <p class="metric-card__value color-red" id="metric-max">—</p>
+        <p class="metric-card__sub" id="metric-max-year">Serie disponible</p>
+      </div>
+      <div class="metric-card">
+        <p class="metric-card__label">Mínimo histórico</p>
+        <p class="metric-card__value color-teal" id="metric-min">—</p>
+        <p class="metric-card__sub" id="metric-min-year">Serie disponible</p>
+      </div>
+    </section>
+
+    <!-- GRÁFICA HISTÓRICA -->
+    <section class="chart-section" aria-label="Gráfica histórica de inflación">
+      <div class="chart-section__header">
+        <h2 class="chart-section__title">Inflación anual completa</h2>
+        <span class="chart-section__badge" id="badge-range">cargando...</span>
+      </div>
+      <div id="state-loading" class="state-loading" aria-live="polite">
+        Consultando World Bank API...
+      </div>
+      <div id="state-error" class="state-error" aria-live="assertive" hidden></div>
+      <div class="chart-wrap" style="height: 280px;" id="wrap-historical" hidden>
+        <canvas
+          id="chart-historical"
+          role="img"
+          aria-label="Gráfica de línea con inflación anual de México"
+        >
+          Inflación anual de México — datos del Banco Mundial.
+        </canvas>
+      </div>
+    </section>
+
+    <!-- GRÁFICA RECIENTE -->
+    <section class="chart-section" aria-label="Inflación últimas dos décadas">
+      <div class="chart-section__header">
+        <h2 class="chart-section__title">Últimas 2 décadas</h2>
+        <span class="chart-section__badge">2004 – presente</span>
+      </div>
+      <div class="chart-wrap" style="height: 240px;" id="wrap-recent" hidden>
+        <canvas
+          id="chart-recent"
+          role="img"
+          aria-label="Gráfica de barras con inflación de México en los últimos 20 años"
+        >
+          Inflación reciente de México.
+        </canvas>
+      </div>
+      <div class="legend" id="legend-recent" hidden>
+        <span class="legend__item">
+          <span class="legend__dot" style="background: var(--accent-teal)"></span>Normal (≤ 4%)
+        </span>
+        <span class="legend__item">
+          <span class="legend__dot" style="background: var(--accent-amber)"></span>Elevada (4–6%)
+        </span>
+        <span class="legend__item">
+          <span class="legend__dot" style="background: var(--accent-red)"></span>Alta (&gt; 6%)
+        </span>
+      </div>
+    </section>
+
+    <footer class="footer">
+      Fuente: World Bank — Indicator FP.CPI.TOTL.ZG &nbsp;|&nbsp;
+      Portafolio GitHub — Ingeniería de Datos
+    </footer>
+
+  </main>
+
+  <script>
+    /* =====================================================
+       CONFIG — un solo objeto con todas las constantes.
+       Si cambia la API o los colores, solo tocas aquí.
+    ===================================================== */
+    const CONFIG = {
+      api: {
+        url: 'https://api.worldbank.org/v2/country/MX/indicator/FP.CPI.TOTL.ZG?format=json&per_page=60&mrv=60',
+      },
+      thresholds: {
+        high:   6,   // > 6% → rojo
+        medium: 4,   // 4-6% → ámbar
+      },
+      colors: {
+        teal:  '#1fcfa0',
+        amber: '#e0a020',
+        red:   '#e05252',
+        grid:  '#1a1d25',
+        tooltip: {
+          bg:    '#161820',
+          border: '#2a2d35',
+          title: '#5a5f70',
+        },
+      },
+      charts: {
+        fontMono: 'Space Mono',
+        fontSize: 10,
+      },
+      recentYears: 20,
+    };
+
+    /* =====================================================
+       CAPA DE DATOS — solo responsabilidad: llamar a la API
+       y devolver los datos crudos.
+    ===================================================== */
+    async function fetchInflationData() {
+      const response = await fetch(CONFIG.api.url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} — no se pudo conectar con la API`);
+      }
+      const json = await response.json();
+      return json[1];
+    }
+
+    /* =====================================================
+       CAPA DE TRANSFORMACIÓN — solo responsabilidad:
+       limpiar y estructurar los datos para la UI.
+       No sabe nada de HTML ni de Chart.js.
+    ===================================================== */
+    function processData(rawData) {
+      const clean = rawData
+        .filter(entry => entry.value !== null)
+        .sort((a, b) => parseInt(a.date) - parseInt(b.date));
+
+      const years  = clean.map(d => String(d.date));
+      const values = clean.map(d => parseFloat(d.value.toFixed(2)));
+
+      const latest   = clean[clean.length - 1];
+      const maxEntry = clean.reduce((prev, curr) => curr.value > prev.value ? curr : prev);
+      const minEntry = clean.reduce((prev, curr) => curr.value < prev.value ? curr : prev);
+
+      return { years, values, latest, maxEntry, minEntry };
+    }
+
+    /* =====================================================
+       CAPA DE PRESENTACIÓN — CARDS
+       Solo responsabilidad: escribir los valores en el DOM.
+    ===================================================== */
+    function renderMetricCards({ latest, maxEntry, minEntry }) {
+      document.getElementById('metric-latest').textContent      = latest.value.toFixed(1) + '%';
+      document.getElementById('metric-latest-year').textContent = 'Año ' + latest.date;
+
+      document.getElementById('metric-max').textContent         = maxEntry.value.toFixed(1) + '%';
+      document.getElementById('metric-max-year').textContent    = 'Año ' + maxEntry.date;
+
+      document.getElementById('metric-min').textContent         = minEntry.value.toFixed(1) + '%';
+      document.getElementById('metric-min-year').textContent    = 'Año ' + minEntry.date;
+    }
+
+    /* =====================================================
+       UTILIDAD — config compartida de ejes para Chart.js.
+       DRY: evita repetir la misma config en cada gráfica.
+    ===================================================== */
+    function buildAxisConfig(callbackFn) {
+      return {
+        ticks: {
+          color: CONFIG.colors.teal + '99',
+          font:  { family: CONFIG.charts.fontMono, size: CONFIG.charts.fontSize },
+          callback: callbackFn,
+        },
+        grid: { color: CONFIG.colors.grid },
+      };
+    }
+
+    /* =====================================================
+       UTILIDAD — config compartida de tooltip para Chart.js.
+    ===================================================== */
+    function buildTooltipConfig(labelCallback) {
+      return {
+        backgroundColor: CONFIG.colors.tooltip.bg,
+        borderColor:     CONFIG.colors.tooltip.border,
+        borderWidth:     1,
+        titleColor:      CONFIG.colors.tooltip.title,
+        bodyColor:       CONFIG.colors.teal,
+        callbacks: { label: labelCallback },
+      };
+    }
+
+    /* =====================================================
+       CAPA DE PRESENTACIÓN — GRÁFICA HISTÓRICA (línea)
+       Solo responsabilidad: construir y montar esa gráfica.
+    ===================================================== */
+    function renderHistoricalChart(years, values) {
+      const ctx = document.getElementById('chart-historical');
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: years,
+          datasets: [{
+            label:                'Inflación anual %',
+            data:                 values,
+            borderColor:          CONFIG.colors.teal,
+            backgroundColor:      CONFIG.colors.teal + '0f',
+            borderWidth:          1.5,
+            pointRadius:          2,
+            pointBackgroundColor: CONFIG.colors.teal,
+            fill:                 true,
+            tension:              0.3,
+          }],
+        },
+        options: {
+          responsive:          true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend:  { display: false },
+            tooltip: buildTooltipConfig(c => ' ' + c.raw.toFixed(2) + '%'),
+          },
+          scales: {
+            x: {
+              type: 'category',
+              grid:  { color: CONFIG.colors.grid },
+              ticks: {
+                color:         CONFIG.colors.teal + '99',
+                font:          { family: CONFIG.charts.fontMono, size: CONFIG.charts.fontSize },
+                maxRotation:   45,
+                autoSkip:      true,
+                maxTicksLimit: 10,
+              },
+            },
+            y: {
+              beginAtZero: false,
+              grid:  { color: CONFIG.colors.grid },
+              ticks: {
+                color:    CONFIG.colors.teal + '99',
+                font:     { family: CONFIG.charts.fontMono, size: CONFIG.charts.fontSize },
+                callback: v => v + '%',
+              },
+            },
+          },
+        },
+      });
+    }
+
+    /* =====================================================
+       UTILIDAD — asigna color de barra según umbrales.
+       Si los umbrales cambian, solo tocas CONFIG.thresholds.
+    ===================================================== */
+    function getBarColor(value) {
+      if (value > CONFIG.thresholds.high)   return CONFIG.colors.red;
+      if (value > CONFIG.thresholds.medium) return CONFIG.colors.amber;
+      return CONFIG.colors.teal;
+    }
+
+    /* =====================================================
+       CAPA DE PRESENTACIÓN — GRÁFICA RECIENTE (barras)
+       Solo responsabilidad: construir y montar esa gráfica.
+    ===================================================== */
+    function renderRecentChart(years, values) {
+      const recentYears  = years.slice(-CONFIG.recentYears);
+      const recentValues = values.slice(-CONFIG.recentYears);
+      const barColors    = recentValues.map(getBarColor);
+
+      const ctx = document.getElementById('chart-recent');
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: recentYears,
+          datasets: [{
+            label:           'Inflación %',
+            data:            recentValues,
+            backgroundColor: barColors,
+            borderWidth:     0,
+            borderRadius:    3,
+          }],
+        },
+        options: {
+          responsive:          true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend:  { display: false },
+            tooltip: buildTooltipConfig(c => ' ' + c.raw.toFixed(2) + '%'),
+          },
+          scales: {
+            x: {
+              type: 'category',
+              grid:  { display: false },
+              ticks: {
+                color:       CONFIG.colors.teal + '99',
+                font:        { family: CONFIG.charts.fontMono, size: CONFIG.charts.fontSize },
+                autoSkip:    false,
+                maxRotation: 45,
+              },
+            },
+            y: {
+              beginAtZero: true,
+              grid:  { color: CONFIG.colors.grid },
+              ticks: {
+                color:    CONFIG.colors.teal + '99',
+                font:     { family: CONFIG.charts.fontMono, size: CONFIG.charts.fontSize },
+                callback: v => v + '%',
+              },
+            },
+          },
+        },
+      });
+    }
+
+    /* =====================================================
+       CONTROL DE UI — estados de loading/error/éxito.
+       Separa la lógica de visibilidad del DOM del resto.
+    ===================================================== */
+    function showLoading() {
+      document.getElementById('state-loading').hidden = false;
+      document.getElementById('state-error').hidden   = true;
+    }
+
+    function showError(message) {
+      const el = document.getElementById('state-error');
+      el.textContent = '⚠ ' + message;
+      el.hidden = false;
+      document.getElementById('state-loading').hidden = true;
+    }
+
+    function showCharts() {
+      document.getElementById('state-loading').hidden    = true;
+      document.getElementById('wrap-historical').hidden  = false;
+      document.getElementById('wrap-recent').hidden      = false;
+      document.getElementById('legend-recent').hidden    = false;
+    }
+
+    /* =====================================================
+       ORQUESTADOR PRINCIPAL — une todas las capas.
+       Solo responsabilidad: coordinar el flujo completo.
+       No hace fetch, no transforma datos, no toca Chart.js.
+    ===================================================== */
+    async function initDashboard() {
+      showLoading();
+
+      try {
+        const rawData             = await fetchInflationData();
+        const { years, values, latest, maxEntry, minEntry } = processData(rawData);
+
+        renderMetricCards({ latest, maxEntry, minEntry });
+
+        document.getElementById('badge-range').textContent =
+          years[0] + ' – ' + years[years.length - 1];
+
+        showCharts();
+
+        renderHistoricalChart(years, values);
+        renderRecentChart(years, values);
+
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    /* =====================================================
+       PUNTO DE ENTRADA — arranca el dashboard
+    ===================================================== */
+    initDashboard();
+  </script>
+</body>
+</html>
