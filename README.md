@@ -49,7 +49,6 @@ initDashboard()        →  Orquestador        — coordina el flujo completo
 
 Principios aplicados:
 - **Single Responsibility** — cada función tiene una sola razón para cambiar
-- **DRY** — utilidades compartidas para configuración de ejes y tooltips (`buildAxisConfig`, `buildTooltipConfig`)
 - **Design tokens** — colores, umbrales y URLs centralizados en un objeto `CONFIG`
 - **Manejo de errores** — feedback visual al usuario ante fallos de red
 
